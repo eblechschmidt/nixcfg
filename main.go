@@ -1,17 +1,21 @@
 package main
 
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os/exec"
+	"strings"
+	"sync"
 
-import "os/exec"
-import "strings"
-import "fmt"
-import "log"
+	"github.com/rs/zerolog/log"
+)
+
 // import "os"
-import "io"
-import "bufio"
-import "sync"
+
 // import "bytes"
 
-func main(){
+func main() {
 	cmd := exec.Command("nix", "repl", "--expr", "builtins.getFlake \"/home/eike/repos/nixos\"")
 
 	stdin, err := cmd.StdinPipe()
@@ -24,11 +28,11 @@ func main(){
 	}
 	var wg sync.WaitGroup
 
-	evalOption := make(chan string) 
+	evalOption := make(chan string)
 	wg.Add(1)
 	go func() {
 		defer stdin.Close()
-        defer wg.Done()
+		defer wg.Done()
 
 		for o := range evalOption {
 			fmt.Printf("Evaluating: %s\n", o)
@@ -39,43 +43,43 @@ func main(){
 	res := make(chan string)
 	wg.Add(1)
 	go func() {
-	    defer stdout.Close()
-        defer wg.Done()
-	    // copy the data written to the PipeReader via the cmd to stdout
-	    // if _, err := io.Copy(os.Stdout, stdout); err != nil {
-	    //     log.Fatal(err)
-	    // }
-	    s := bufio.NewScanner(stdout)
-	    var sb strings.Builder
+		defer stdout.Close()
+		defer wg.Done()
+		// copy the data written to the PipeReader via the cmd to stdout
+		// if _, err := io.Copy(os.Stdout, stdout); err != nil {
+		//     log.Fatal(err)
+		// }
+		s := bufio.NewScanner(stdout)
+		var sb strings.Builder
 		multiline := false
-	    for {
-	    	for s.Scan() {
+		for {
+			for s.Scan() {
 				if s.Text() == "" {
 					continue
 				}
-	    		if !multiline{
+				if !multiline {
 					if strings.HasPrefix(s.Text(), "{") {
 						multiline = true
-		    			sb.Reset()
-					}	    			
-	    		}
-	    		if multiline {
-	    			sb.WriteString(fmt.Sprintf("%s\n", s.Text()))
-	    			if strings.HasPrefix(s.Text(), "}") {
+						sb.Reset()
+					}
+				}
+				if multiline {
+					sb.WriteString(fmt.Sprintf("%s\n", s.Text()))
+					if strings.HasPrefix(s.Text(), "}") {
 						res <- sb.String()
 						multiline = false
-	    				break
-	    			}
-	    			continue
-	    		}
+						break
+					}
+					continue
+				}
 				res <- s.Text()
-	    		multiline = false
+				multiline = false
 			}
 			if s.Err() != nil {
 				break
 			}
-	    }
-	    fmt.Println("Done reading")
+		}
+		fmt.Println("Done reading")
 	}()
 
 	fmt.Println("Start process")
