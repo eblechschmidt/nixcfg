@@ -3,22 +3,116 @@ package options
 import (
 	"bufio"
 	"bytes"
+	"io"
 	"os/exec"
 	"strings"
 
+	"github.com/eblechschmidt/nixcfg/internal/render"
 	"github.com/rs/zerolog/log"
 )
+
+type Option struct {
+	Path  string
+	Value string
+}
+
+func List(flake, option string) (<-chan Option, error) {
+	result := make(chan Option)
+	cmd := []string{"nixos-option", "-r", "--flake", flake, option}
+	log.Debug().Msgf("Run command '%s'", strings.Join(cmd, " "))
+	c := exec.Command(cmd[0], cmd[1:]...)
+
+	stdout, err := c.StdoutPipe()
+	if err != nil {
+		return nil, err
+	}
+
+	err = createStdout(stdout, result)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Debug().Msg("Start command")
+	err = c.Start()
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		err := c.Wait()
+		if err != nil {
+			log.Err(err)
+		}
+		stdout.Close()
+		close(result)
+	}()
+
+	return result, nil
+}
+
+func createStdout(stdout io.Reader, result chan Option) error {
+
+	go func() {
+		log.Debug().Msg("Start receiving go rountine")
+		var err error
+		defer close(result)
+
+		s := bufio.NewScanner(stdout)
+
+		s.Split(
+			func(data []byte, atEOF bool) (advance int, token []byte, err error) {
+				if atEOF && len(data) == 0 {
+					return 0, nil, nil
+				}
+				if i := bytes.IndexByte(data, '\n'); i >= 0 {
+					// We have a full newline-terminated line.
+					return i + 1, data[0:i], nil
+				}
+				// If we're at EOF, we have a final, non-terminated line. Return it.
+				if atEOF {
+					return len(data), data, nil
+				}
+				// Request more data.
+				return 0, nil, nil
+			},
+		)
+
+		for {
+			for s.Scan() {
+				if pos := strings.Index(s.Text(), "="); pos >= 0 {
+					o := Option{
+						Path:  strings.Trim(s.Text()[:pos-1], " "),
+						Value: strings.Trim(s.Text()[pos+1:], " ;"),
+					}
+					result <- o
+					// log.Debug().
+					// 	Str("path", o.Path).
+					// 	Str("value", o.Value).
+					// 	Msg("Retrieved option")
+				}
+			}
+			if s.Err() != nil {
+				log.Err(err)
+				break
+			}
+		}
+
+		log.Debug().Msg("Receiving go routine stoped")
+	}()
+	return nil
+}
 
 func Show(flake, option string) (string, error) {
 	buf := bytes.Buffer{}
 	errBuf := bytes.Buffer{}
 
-	cmd := exec.Command("nixos-option", "--flake", flake, option)
+	cmd := []string{"nixos-option", "--flake", flake, option}
+	log.Debug().Msgf("Run command '%s'", strings.Join(cmd, " "))
+	c := exec.Command(cmd[0], cmd[1:]...)
 
-	cmd.Stdout = &buf
-	cmd.Stderr = &errBuf
+	c.Stdout = &buf
+	c.Stderr = &errBuf
 
-	err := cmd.Run()
+	err := c.Run()
 	if err != nil {
 		log.Err(err).Msg(errBuf.String())
 		return "", err
@@ -55,5 +149,5 @@ func Show(flake, option string) (string, error) {
 		out.WriteString("```\n")
 	}
 
-	return out.String(), nil //render.RenderMD(out.String())
+	return render.RenderMD(out.String())
 }

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/eblechschmidt/nixcfg/internal/options"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -14,12 +16,27 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "nixcfg",
+	Use:   "nixcfg [option]",
 	Short: "nixcfg is a tool to inspect nixos options",
 	Long: `nixcfg is a command line tool including a tui that makes it really
 				easy to inspect nixos configurations`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Do Stuff Here
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) > 1 {
+			return fmt.Errorf("only one option as argument supported")
+		}
+		opt := ""
+		if len(args) == 1 {
+			opt = args[0]
+		}
+		r, err := options.List(flake, opt)
+		if err != nil {
+			return err
+		}
+		log.Debug().Msg("Reading lines")
+		for line := range r {
+			fmt.Println(line)
+		}
+		return nil
 	},
 }
 

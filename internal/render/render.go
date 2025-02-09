@@ -4,7 +4,7 @@ import "github.com/charmbracelet/glamour"
 
 func RenderMD(content string) (string, error) {
 	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithStandardStyle("dark"),
 	)
 	if err != nil {
 		return "", err

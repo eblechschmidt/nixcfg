@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+
+	"github.com/rs/zerolog/log"
 )
 
 var ErrCancelled = errors.New("cancelled")
@@ -62,6 +64,7 @@ func New(opts ...Option) (*Fzf, error) {
 
 	args := argsFromOpt(o)
 	fzfCmd := fmt.Sprintf("%s %s", bin, strings.Join(args, " "))
+	log.Debug().Str("cmd", fzfCmd).Msg("Run fzf")
 
 	cmd := exec.Command(shell, "-c", fzfCmd)
 	cmd.Stderr = os.Stderr
