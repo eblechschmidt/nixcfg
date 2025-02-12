@@ -12,7 +12,7 @@ import (
 var flake string
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&flake, "flake", "f", "flake to be used to get options")
+	rootCmd.PersistentFlags().StringVar(&flake, "flake", ".#", "flake to be used to get options")
 }
 
 var rootCmd = &cobra.Command{

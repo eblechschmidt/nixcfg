@@ -43,7 +43,6 @@ func List(flake, option string) (<-chan Option, error) {
 			log.Err(err)
 		}
 		stdout.Close()
-		close(result)
 	}()
 
 	return result, nil
