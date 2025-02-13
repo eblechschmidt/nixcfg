@@ -1,50 +1,46 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/eblechschmidt/nixcfg/internal/parser"
+	"github.com/eblechschmidt/nixcfg/internal/options"
+	"github.com/eblechschmidt/nixcfg/internal/repl"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 func init() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	// zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 }
 
 func main() {
 	start := time.Now()
 
-	p, err := parser.NewWithFlake("/home/eike/repos/nixos")
+	r, err := repl.NewWithFlake("/home/eike/repos/nixos")
 	if err != nil {
 		log.Fatal().Err(err).Msg("Could not create repl")
 	}
 
-	// str := "nixosConfigurations.nixserve.config.stylix"
-	// str := "nixosConfigurations.nixserve.config.programs.ssh.knownHosts.nixserve"
-	// str := "nixosConfigurations.nixserve.config.assertions"
-	// str := "nixosConfigurations.nixserve.config"
-	// str := "nixosConfigurations.nixserve.options"
-	str := "(builtins.toJSON nixosConfigurations.nixserve.options)"
-	res, err := p.Parse(str, true)
-	if err != nil {
-		log.Fatal().Err(err).Msgf("Could not evaluate %s", str)
-	}
-	log.Debug().Any("Result", res).Msg("Returned result")
+	t := options.NewTree(r, "nixserve")
 
-	b, err := json.Marshal(res)
+	// o := "bullerbyn.traefik.dataDir"
+	o := "boot.initrd.systemd.mounts"
+	val, err := t.Get(o)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error marshalling json")
+		log.Fatal().Err(err)
 	}
-	fmt.Println(string(b))
 
-	if err := p.Close(); err != nil {
-		log.Fatal().Err(err).Msg("Error closing repl")
-	}
 	elapsed := time.Since(start)
 	log.Debug().Msgf("Evaluation done after %s", elapsed)
+
+	fmt.Printf("Value:\n  %s\n\n", val.(*options.Option).ValueStr())
+	fmt.Printf("Default:\n  %s\n\n", val.(*options.Option).Default())
+	fmt.Printf("Type:\n  %s\n\n", val.(*options.Option).Type())
+	fmt.Printf("Description:\n  %s\n\n", val.(*options.Option).Description())
+	fmt.Printf("Declared by:\n  %+v\n\n", val.(*options.Option).DeclaredBy())
+	fmt.Printf("Defined by:\n  %+v\n\n", val.(*options.Option).DefinedBy())
+
 }

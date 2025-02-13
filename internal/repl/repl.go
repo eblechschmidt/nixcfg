@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -215,6 +216,80 @@ func (r *Repl) Close() error {
 	close(r.result)
 	log.Debug().Msg("All buffers flushed. Process stoped.")
 	return nil
+}
+
+func (r *Repl) ElemAt(expr string, n int) (string, error) {
+	return r.Eval(fmt.Sprintf("builtins.elemAt (%s) %d", expr, n))
+}
+func (r *Repl) Length(expr string) (int, error) {
+	val, err := r.Value(fmt.Sprintf("builtins.length (%s)", expr))
+	if err != nil {
+		return -1, err
+	}
+	if i, ok := val.(int); ok {
+		return i, nil
+	}
+	return -1, fmt.Errorf("expression '%s' did not return integer", expr)
+}
+
+// IsAttrs returns true if path is an attr set and false if path does not exis
+// or is not an atr set
+func (r *Repl) IsAttrs(expr string) bool {
+	val, err := r.Value(fmt.Sprintf("builtins.isAttrs (%s)", expr))
+	if err != nil {
+		return false
+	}
+	if tf, ok := val.(bool); ok {
+		return tf
+	}
+	return false
+}
+
+// Value returns the value of an expression it assumes that the result of `expr`
+// is not a list nor a attr set
+func (r *Repl) Value(expr string) (any, error) {
+	val, err := r.Eval(expr)
+	if err != nil {
+		return nil, err
+	}
+	return ParseVal(val), nil
+}
+func ParseVal(val string) any {
+	switch val {
+	case "[ ]":
+		return []string{}
+	case "null":
+		return nil
+	case "true":
+		return true
+	case "false":
+		return false
+	case "{ }":
+		var v struct{}
+		return v
+	}
+	if strings.HasPrefix(val, "«") {
+		return val
+	}
+	if strings.HasPrefix(val, "\"") {
+		return strings.Trim(val, "\"")
+	}
+	if v, err := strconv.Atoi(val); err == nil {
+		return v
+	}
+	if v, err := strconv.ParseFloat(val, 64); err == nil {
+		return v
+	}
+
+	if strings.HasPrefix(val, "/") || strings.HasPrefix(val, "./") ||
+		strings.HasPrefix(val, "../") {
+		return val
+	}
+
+	log.Error().Str("val", val).Msg("Not implemented")
+
+	return val
+
 }
 
 // const ansi = "[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))"
