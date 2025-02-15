@@ -26,21 +26,29 @@ func main() {
 
 	t := options.NewTree(r, "nixserve")
 
-	// o := "bullerbyn.traefik.dataDir"
-	o := "boot.initrd.systemd.mounts"
-	val, err := t.Get(o)
+	opts, err := t.List("boot")
 	if err != nil {
-		log.Fatal().Err(err)
+		log.Fatal().Err(err).Msg("Could not generate option list")
 	}
 
+	for _, o := range opts {
+		fmt.Println(o.Path())
+	}
+
+	// o := "bullerbyn.traefik.dataDir"
+	// o := "boot.initrd.systemd.contents"
+	// val, err := t.Get(o)
+	// if err != nil {
+	// 	log.Fatal().Err(err)
+	// }
+
+	// fmt.Printf("Value:\n  %s\n\n", val.(*options.Option).ValueStr())
+	// fmt.Printf("Default:\n  %s\n\n", val.(*options.Option).Default())
+	// fmt.Printf("Type:\n  %s\n\n", val.(*options.Option).Type())
+	// fmt.Printf("Description:\n  %s\n\n", val.(*options.Option).Description())
+	// fmt.Printf("Declared by:\n  %+v\n\n", val.(*options.Option).DeclaredBy())
+	// fmt.Printf("Defined by:\n  %+v\n\n", val.(*options.Option).DefinedBy())
+
 	elapsed := time.Since(start)
-	log.Debug().Msgf("Evaluation done after %s", elapsed)
-
-	fmt.Printf("Value:\n  %s\n\n", val.(*options.Option).ValueStr())
-	fmt.Printf("Default:\n  %s\n\n", val.(*options.Option).Default())
-	fmt.Printf("Type:\n  %s\n\n", val.(*options.Option).Type())
-	fmt.Printf("Description:\n  %s\n\n", val.(*options.Option).Description())
-	fmt.Printf("Declared by:\n  %+v\n\n", val.(*options.Option).DeclaredBy())
-	fmt.Printf("Defined by:\n  %+v\n\n", val.(*options.Option).DefinedBy())
-
+	fmt.Printf("Evaluation done after %s", elapsed)
 }
